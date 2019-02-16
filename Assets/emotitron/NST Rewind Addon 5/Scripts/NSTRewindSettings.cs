@@ -1,0 +1,53 @@
+﻿////Copyright 2018, Davin Carten, All rights reserved
+
+//using UnityEngine;
+//using emotitron.Utilities.GUIUtilities;
+//using emotitron.NST.Rewind;
+
+//#if UNITY_EDITOR
+//using UnityEditor;
+//#endif
+
+//namespace emotitron.NST
+//{
+//	[System.Serializable]
+//	public class NSTRewindSettings : Singleton<NSTRewindSettings>
+//	{
+//		protected override void Awake()
+//		{
+//			base.Awake();
+			
+//			//// Force rewind settings to initialize, if we don't it will on first touch - which may cause a hiccup.
+//			//RewindSettings.Single.Initialize();
+//		}
+//	}
+
+//#if UNITY_EDITOR
+
+//	[CustomEditor(typeof(NSTRewindSettings))]
+//	[CanEditMultipleObjects]
+//	public class NSTRewindSettingsEditor : NSTHeaderEditorBase
+//	{
+
+//		public override void OnEnable()
+//		{
+//			headerName = HeaderSettingsName;
+//			headerColor = HeaderSettingsColor;
+//			base.OnEnable();
+
+//		}
+//		public override void OnInspectorGUI()
+//		{
+//			base.OnInspectorGUI();
+//			RewindSettings.Single.DrawGui(target, false, true);
+//		}
+//	}
+
+
+//#endif
+
+//}
+
+
+
+

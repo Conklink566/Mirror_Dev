@@ -1,0 +1,46 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Events;
+
+namespace emotitron.NST
+{
+	// Definition of for OnRewindCastResults callbacks that will be registered
+	//public delegate void CastResultsDelegate(CastResults results);
+	//public delegate void FrameCastIdDelegate(Frame frame, int castid);
+
+
+	//  UnityEvent callback defs for inspector
+	[System.Serializable] public class UnityEventFrame : UnityEvent<Frame> { }
+	[System.Serializable] public class UnityEventFrameCastId : UnityEvent<Frame, int> { }
+	[System.Serializable] public class UnityEventFrameCastDef : UnityEvent<Frame, CastDefinition> { }
+
+	public interface INstCast
+	{
+		void OnCast(Frame frame, CastDefinition castDef);
+	}
+
+	public interface INstCastResults
+	{
+		void OnCastResults(CastResults results, ApplyTiming applyTiming);
+	}
+
+
+	//public interface INstCastResultsRcv
+	//{
+	//	void OnCastResultsRcv(CastResults results);
+	//}
+
+	//public interface INstCastResultsStartInterpolate
+	//{
+	//	void OnCastResultsStartInterpolate(CastResults results);
+	//}
+
+	//public interface INstCastResultsEndInterpolate
+	//{
+	//	void OnCastResultsEndInterpolate(CastResults results);
+	//}
+
+
+}
+

@@ -1,0 +1,472 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>PrimitiveSerializer</name>
+    </assembly>
+    <members>
+        <member name="T:emotitron.Compression.PrimitiveSerializeExt">
+            <summary>
+            Extension methods for writing bits to primitive buffers.
+            </summary>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt64,System.UInt32@,System.Int32,System.Int32@)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt64,System.UInt64@,System.Int32,System.Int32@)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(emotitron.Compression.ByteConverter,System.UInt64@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(emotitron.Compression.ByteConverter,System.UInt32@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(emotitron.Compression.ByteConverter,System.UInt16@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(emotitron.Compression.ByteConverter,System.Byte@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt64,System.UInt64@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt64,System.UInt64@,System.Int32,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Write position. Writing will begin at this position in the buffer.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt32,System.UInt64@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt32,System.UInt64@,System.Int32,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Write position. Writing will begin at this position in the buffer.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt16,System.UInt64@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt16,System.UInt64@,System.Int32,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Write position. Writing will begin at this position in the buffer.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.Byte,System.UInt64@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.Byte,System.UInt64@,System.Int32,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Write position. Writing will begin at this position in the buffer.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt64,System.UInt32@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt64,System.UInt32@,System.Int32,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Write position. Writing will begin at this position in the buffer.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt32,System.UInt32@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt32,System.UInt32@,System.Int32,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Write position. Writing will begin at this position in the buffer.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt16,System.UInt32@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt16,System.UInt32@,System.Int32,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Write position. Writing will begin at this position in the buffer.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.Byte,System.UInt32@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.Byte,System.UInt32@,System.Int32,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Write position. Writing will begin at this position in the buffer.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt64,System.UInt16@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt64,System.UInt16@,System.Int32,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Write position. Writing will begin at this position in the buffer.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt32,System.UInt16@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt32,System.UInt16@,System.Int32,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Write position. Writing will begin at this position in the buffer.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt16,System.UInt16@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt16,System.UInt16@,System.Int32,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Write position. Writing will begin at this position in the buffer.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.Byte,System.UInt16@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.Byte,System.UInt16@,System.Int32,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Write position. Writing will begin at this position in the buffer.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt64,System.Byte@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt64,System.Byte@,System.Int32,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Write position. Writing will begin at this position in the buffer.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt32,System.Byte@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt32,System.Byte@,System.Int32,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Write position. Writing will begin at this position in the buffer.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt16,System.Byte@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.UInt16,System.Byte@,System.Int32,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Write position. Writing will begin at this position in the buffer.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.Byte,System.Byte@,System.Int32@,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Auto-incremented write position. Writing will begin at this position in the buffer, and this value will have bitcount added to it.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.Byte,System.Byte@,System.Int32,System.Int32)">
+            <summary>
+            Inject (write/serialize) x bits of source value into a target primitive (the buffer) starting at bitposition.
+            </summary>
+            <param name="src">Value to write.</param>
+            <param name="buffer">Target of write.</param>
+            <param name="bitposition">Write position. Writing will begin at this position in the buffer.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to target buffer.</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Extract(System.UInt64,System.Int32,System.Int32@)">
+            <summary>
+            Extract (read/deserialize) a value from a source primitive (the buffer) by reading x bits starting at the bitposition, and return the reconstructed value. 
+            </summary>
+            <param name="src">Source primitive buffer to read from.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to return value.</param>
+            <param name="bitposition">Auto-incremented reference to the src read bit pointer. Extraction starts at this point in src.</param>
+            <returns>Downcast this ulong return value to the desired type.</returns>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Extract(System.UInt64,System.Int32@,System.Int32)">
+            <summary>
+            Extract (read/deserialize) a value from a source primitive (the buffer) by reading x bits starting at the bitposition, and return the reconstructed value. 
+            </summary>
+            <param name="src">Source primitive buffer to read from.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to return value.</param>
+            <param name="bitposition">Auto-incremented reference to the src read bit pointer. Extraction starts at this point in src.</param>
+            <returns>Downcast this ulong return value to the desired type.</returns>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Extract(System.UInt64,System.Int32)">
+            <summary>
+            Extract and return bits from src. 
+            </summary>
+            <param name="src">Source primitive.</param>
+            <param name="bitcount">How many lower order bits to read.</param>
+            <returns>Cast the return value to the desired type.</returns>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Extract(System.UInt32,System.Int32@,System.Int32)">
+            <summary>
+            Extract (read/deserialize) a value from a source primitive (the buffer) by reading x bits starting at the bitposition, and return the reconstructed value. 
+            </summary>
+            <param name="src">Source primitive buffer to read from.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to return value.</param>
+            <param name="bitposition">Auto-incremented reference to the src read bit pointer. Extraction starts at this point in src.</param>
+            <returns>Cast this uint return value to the desired type.</returns>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Extract(System.UInt32,System.Int32)">
+            <summary>
+            Extract and return bits from src. 
+            </summary>
+            <param name="src">Source primitive.</param>
+            <param name="bitcount">How many lower order bits to read.</param>
+            <returns>Cast the return value to the desired type.</returns>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Extract(System.UInt16,System.Int32@,System.Int32)">
+            <summary>
+            Extract (read/deserialize) a value from a source primitive (the buffer) by reading x bits starting at the bitposition, and return the reconstructed value. 
+            </summary>
+            <param name="src">Source primitive buffer to read from.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to return value.</param>
+            <param name="bitposition">Auto-incremented reference to the src read bit pointer. Extraction starts at this point in src.</param>
+            <returns>Cast this ushort return value to the desired type.</returns>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Extract(System.Byte,System.Int32@,System.Int32)">
+            <summary>
+            Extract (read/deserialize) a value from a source primitive (the buffer) by reading x bits starting at the bitposition, and return the reconstructed value. 
+            </summary>
+            <param name="src">Source primitive buffer to read from.</param>
+            <param name="bitcount">Number of lower order bits to copy from source to return value.</param>
+            <param name="bitposition">Auto-incremented reference to the src read bit pointer. Extraction starts at this point in src.</param>
+            <returns>Downcast this uint return value to the desired type.</returns>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Extract(System.Byte,System.Int32)">
+            <summary>
+            Extract and return bits from src. 
+            </summary>
+            <param name="src">Source primitive.</param>
+            <param name="bitcount">How many lower order bits to read.</param>
+            <returns>Cast the return value to the desired type.</returns>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.Inject(System.Single,System.UInt64@,System.Int32@)">
+            <summary>
+            Inject (serialize/write) a float into a primitive buffer at the bitposition. No compression occurs, this is a full 32bit write.
+            </summary>
+            <param name="f">Float to compress and write.</param>
+            <param name="buffer">Target buffer for write.</param>
+            <param name="bitposition">Auto-incremented read position for the buffer (in bits)</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.ExtractFloat(System.UInt64,System.Int32@)">
+            <summary>
+            Extract a float from a bitpacked primitive(src) starting at bitposition.
+            </summary>
+            <param name="buffer"></param>
+            <param name="bitposition">Auto-incremented read position for the buffer (in bits)</param>
+            <returns></returns>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.InjectAsHalfFloat(System.Single,System.UInt64@,System.Int32@)">
+            <summary>
+            Inject (serialize/write) a compressed float into a primitive buffer at the bitposition.
+            </summary>
+            <param name="f">Float to compress and write.</param>
+            <param name="buffer">Target buffer for write.</param>
+            <param name="bitposition">Auto-incremented read position for the buffer (in bits)</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.InjectAsHalfFloat(System.Single,System.UInt32@,System.Int32@)">
+            <summary>
+            Inject (serialize/write) a compressed float into a primitive buffer at the bitposition.
+            </summary>
+            <param name="f">Float to compress and write.</param>
+            <param name="buffer">Target buffer for write.</param>
+            <param name="bitposition">Auto-incremented read position for the buffer (in bits)</param>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.ExtractHalfFloat(System.UInt64,System.Int32@)">
+            <summary>
+            Extract a float from a bitpacked primitive(src) starting at bitposition.
+            </summary>
+            <param name="buffer">Source buffer to extract from.</param>
+            <param name="bitposition">Auto-incremented read position for the buffer (in bits)</param>
+            <returns></returns>
+        </member>
+        <member name="M:emotitron.Compression.PrimitiveSerializeExt.ExtractHalfFloat(System.UInt32,System.Int32@)">
+            <summary>
+            Extract a float from a bitpacked primitive(src) starting at bitposition.
+            </summary>
+            <param name="buffer">Source buffer to extract from.</param>
+            <param name="bitposition">Auto-incremented read position for the buffer (in bits)</param>
+            <returns></returns>
+        </member>
+    </members>
+</doc>

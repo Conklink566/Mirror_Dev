@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>ByteConverter</name>
+    </assembly>
+    <members>
+        <member name="P:emotitron.Compression.ByteConverter.Item(System.Int32)">
+            <summary>
+            A Byte indexer.
+            </summary>
+            <param name="index">Byte index.</param>
+            <returns>Value of the byte at given index.</returns>
+        </member>
+    </members>
+</doc>

@@ -1,0 +1,91 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using Mirror;
+
+namespace App.Level
+{
+    public class MovingPlatform : NetworkBehaviour
+    {
+        /// <summary>
+        /// How much the platform moves in which direction.
+        /// </summary>
+        public Vector3 MovementOffset;
+
+        /// <summary>
+        /// Starting position, set in Start()
+        /// </summary>
+        private Vector3 _StartingPoint;
+
+        /// <summary>
+        /// Ending position, set in Start()
+        /// </summary>
+        private Vector3 _EndingPoint;
+        
+        /// <summary>
+        /// Time to get to the point
+        /// </summary>
+        public float TimeToGetToPoint;
+
+        /// <summary>
+        /// Current Time lapse of the platform
+        /// </summary>
+        private float _CurrentTime = 0.0f;
+
+        /// <summary>
+        /// Toggle for which direction the platform is moving
+        /// </summary>
+        private bool _GoingToEndLocation = true;
+
+        /// <summary>
+        /// Check to see if this is a moving platform
+        /// </summary>
+        public bool PlatformMovement = false;
+
+        /// <summary>
+        /// Start this instance
+        /// </summary>
+        private void Start()
+        {
+            if (!isServer)
+            {
+                return;
+            }
+            this._StartingPoint = this.transform.position;
+            this._EndingPoint = this.transform.position + this.MovementOffset;
+        }
+
+        /// <summary>
+        /// Update every frame
+        /// </summary>
+        private void Update()
+        {
+            if (!isServer ||
+                !PlatformMovement)
+                return;
+            this._CurrentTime += this._GoingToEndLocation ? Time.deltaTime : -Time.deltaTime;
+            Vector3 position = Vector3.Lerp(this._StartingPoint, this._EndingPoint, this._CurrentTime / (this.TimeToGetToPoint == 0.0f ? 0.001f : this.TimeToGetToPoint));
+            RpcMovePlatform(position);
+            if(this._CurrentTime >= this.TimeToGetToPoint)
+            {
+                this._CurrentTime = this.TimeToGetToPoint;
+                this._GoingToEndLocation = false;
+            }
+            else if(this._CurrentTime <= 0.0f)
+            {
+                this._CurrentTime = 0.0f;
+                this._GoingToEndLocation = true;
+            }
+        }
+
+        /// <summary>
+        /// Move platform
+        /// </summary>
+        /// <param name="position"></param>
+        [ClientRpc]
+        public void RpcMovePlatform(Vector3 position)
+        {
+            this.transform.position = position;
+        }
+    }
+}

@@ -1,0 +1,156 @@
+﻿//Copyright 2018, Davin Carten, All rights reserved
+
+using UnityEngine;
+using emotitron.Utilities.GenericCast;
+
+
+namespace emotitron.NST
+{
+	public static class CastDefinitionExtensions
+	{
+		public static GameObject defaultCastGraphicGO;
+		/// <summary>
+		/// Create and return a gameojbect representation of a casts/overlap shape and size.
+		/// </summary>
+		public static GameObject CreateCastMeshGraphic(this CastDefinition cd)
+		{
+			/// If we have already created the default graphic, use that from now on.
+			if (defaultCastGraphicGO)
+				return defaultCastGraphicGO;
+
+			CastType castType = cd.castType;
+			defaultCastGraphicGO = new GameObject("Placeholder Cast Graphic");
+			GameObject beam = null;
+
+			// Create ray graphic
+			if (castType == CastType.Raycast || castType == CastType.BoxCast)
+			{
+				beam = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+
+				beam.transform.parent = defaultCastGraphicGO.transform;
+
+				float dist = Mathf.Min(cd.distance, 1000f);
+				beam.transform.localEulerAngles = new Vector3(90, 0, 0);
+				beam.transform.localScale = new Vector3(.1f, dist, .1f);
+				beam.transform.localPosition = new Vector3(0, 0, dist);
+
+				Object.DestroyImmediate(beam.GetComponent<Collider>());
+			}
+
+			else if (castType == CastType.CapsuleCast)
+			{
+				Vector3 fwd = cd.sourceObject.transform.forward;
+				float d = cd.distance;
+				float r = cd.radius;
+
+				CreateCapsuleBetweenTwoPoints(defaultCastGraphicGO, cd.offset1, cd.offset1 + fwd * d, r);
+				CreateCapsuleBetweenTwoPoints(defaultCastGraphicGO, cd.offset2, cd.offset2 + fwd * d, r);
+
+				CreateCapsuleBetweenTwoPoints(defaultCastGraphicGO, cd.offset1, cd.offset2, cd.radius);
+				CreateCapsuleBetweenTwoPoints(defaultCastGraphicGO, cd.offset1 + fwd * d, cd.offset2 + fwd * d, r);
+
+				CreateCapsuleCastWalls(defaultCastGraphicGO, cd.offset1, cd.offset2, fwd, r, d);
+			}
+
+			// Create overlap graphic
+			else if (castType == CastType.OverlapBox || castType == CastType.OverlapSphere)
+			{
+				beam = GameObject.CreatePrimitive(
+					castType == CastType.OverlapBox ? PrimitiveType.Cube : PrimitiveType.Sphere);
+
+				beam.transform.parent = defaultCastGraphicGO.transform;
+
+				float d = Mathf.Min(cd.radius * 2, 40f);
+				beam.transform.localEulerAngles = castType == CastType.OverlapBox ? cd.orientation : new Vector3(0, 0, 0);
+
+				beam.transform.localScale =
+					castType == CastType.OverlapBox ? cd.offset1 * 2 :
+					castType == CastType.OverlapSphere ? new Vector3(d, d, d) :
+					new Vector3(1, 1, 1); // not used.
+
+				beam.transform.localPosition = cd.useOffset ? cd.offset1 : new Vector3(0, 0, 0);
+
+				Object.DestroyImmediate(beam.GetComponent<Collider>());
+			}
+
+			// Create overlap graphic
+			else if (castType == CastType.OverlapCapsule)
+			{
+				CreateCapsuleBetweenTwoPoints(defaultCastGraphicGO, cd.offset1, cd.offset2, cd.radius);
+			}
+
+			defaultCastGraphicGO.SetActive(false);
+			return defaultCastGraphicGO;
+		}
+
+		private static void CreateCapsuleCastWalls(GameObject par, Vector3 a, Vector3 b, Vector3 fwd, float r,  float d)
+		{
+			GameObject plane = GameObject.CreatePrimitive(PrimitiveType.Plane);
+
+			plane.transform.parent = par.transform;
+
+			Mesh mesh = plane.GetComponent<MeshFilter>().mesh;
+			Object.DestroyImmediate(plane.GetComponent<Collider>());
+
+			Vector3 y = Vector3.Cross((b - a), fwd).normalized * r;
+			Vector3 z = fwd * d;
+
+			mesh.Clear();
+			Vector3[] vertices = new Vector3[8] {
+				a + y,
+				b + y,
+				a + y + z,
+				b + y + z,
+				a - y,
+				b - y,
+				a - y + z,
+				b - y + z
+			};
+			int[] triangles = new int[12] {
+				0, 1, 2,
+				2, 1, 3,
+				6, 5, 4,
+				7, 5, 6,
+			};
+
+			mesh.vertices = vertices;
+			mesh.triangles = triangles;
+			mesh.RecalculateNormals();
+		}
+
+		private static void CreateCapsuleBetweenTwoPoints(GameObject par, Vector3 start, Vector3 end, float radius)
+		{
+			CreateChildSphere(par, start, radius);
+			CreateChildSphere(par, end, radius);
+			CreateCylinderBetweenTwoPoints(par, start, end, radius);
+		}
+
+		private static void CreateCylinderBetweenTwoPoints(GameObject par, Vector3 start, Vector3 end, float radius)
+		{
+			GameObject cyl = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+			cyl.transform.parent = par.transform;
+			Object.DestroyImmediate(cyl.GetComponent<Collider>());
+
+			float length = (end - start).magnitude;
+			Vector3 pos = start + (end - start) / 2f;
+			Vector3 dir = (end - start).normalized;
+
+			cyl.transform.localScale = new Vector3(radius * 2, length / 2, radius * 2);
+			cyl.transform.localPosition = pos;
+			cyl.transform.up = dir;
+
+		}
+
+		private static void CreateChildSphere(GameObject par, Vector3 pos, float radius)
+		{
+			GameObject ball = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+			Object.DestroyImmediate(ball.GetComponent<Collider>());
+
+			ball.transform.parent = par.transform;
+			ball.transform.localPosition = pos;
+			float d = radius * 2;
+			ball.transform.localScale = new Vector3(d, d, d);
+		}
+	}
+}
+

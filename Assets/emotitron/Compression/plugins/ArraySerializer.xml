@@ -1,0 +1,135 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>ArraySerializer</name>
+    </assembly>
+    <members>
+        <member name="T:emotitron.Compression.ArraySerializeExt">
+            <summary>
+            A Utility class that gives all byte[], uint[] and ulong[] buffers bitpacking/serialization methods.
+            </summary>
+        </member>
+        <member name="M:emotitron.Compression.ArraySerializeExt.WriteFloat(System.Byte[],System.Single,System.Int32@)">
+            <summary>
+            Converts a float to a 32bit uint with ByteConverter, then writes those 32 bits to the buffer.
+            </summary>
+            <param name="buffer">The array we are reading from.</param>
+            <param name="value">The float value to write.</param>
+            <param name="bitposition">The bit position in the array we start the read at. Will be incremented by 32 bits.</param>
+        </member>
+        <member name="M:emotitron.Compression.ArraySerializeExt.ReadFloat(System.Byte[],System.Int32@)">
+            <summary>
+            Reads a uint32 from the buffer, and converts that back to a float with a ByteConverter cast. If performance is a concern, you can call the primary (ByteConverter)byte[].Read())
+            </summary>
+            <param name="buffer">The array we are reading from.</param>
+            <param name="bitposition">The bit position in the array we start the read at. Will be incremented by 32 bits.</param>
+        </member>
+        <member name="M:emotitron.Compression.ArraySerializeExt.Write(System.Byte[],emotitron.Compression.ByteConverter,System.Int32@,System.Int32)">
+            <summary>
+            This is the primary byte[].Write() method. All other byte[].Write methods lead to this one, so when performance matters, cast using (ByteConverter)value and use this method.
+            </summary>
+            <param name="buffer"></param>
+            <param name="value"></param>
+            <param name="bitposition"></param>
+            <param name="bits"></param>
+            <returns></returns>
+        </member>
+        <member name="M:emotitron.Compression.ArraySerializeExt.Write(System.Byte[],emotitron.Compression.ByteConverter,System.Int32@,System.Int32,System.Boolean)">
+            <summary>
+            This is the primary byte[].Write() method. All other byte[].Write methods lead to this one, so when performance matters, cast using (ByteConverter)value and use this method.
+            </summary>
+            <param name="buffer"></param>
+            <param name="value"></param>
+            <param name="bitposition"></param>
+            <param name="bits"></param>
+            <param name="allowResize">Allows the buffer to be doubled in size if it is too small for this write. YOU MUST GET THE RETURN BYTE[] REFERENCE. The supplied buffer becomes invalid.</param>
+            <returns>The actual byte[] used. Will be a new array if a resize occured.</returns>
+        </member>
+        <member name="M:emotitron.Compression.ArraySerializeExt.Read(System.Byte[],System.Int32@,System.Int32)">
+            <summary>
+            This is the Primary byte[].Read() method. All other byte[].ReadXXX() methods lead here. For maximum performance use this for all Read() calls and cast accordingly.
+            </summary>
+            <param name="buffer">The array we are deserializing from.</param>
+            <param name="bitposition">The position in the array (in bits) where we will begin reading.</param>
+            <param name="bits">The number of bits to read.</param>
+            <returns>UInt64 read value. Cast this to the intended type.</returns>
+        </member>
+        <member name="M:emotitron.Compression.ArraySerializeExt.Read(System.UInt32[],System.Int32@,System.Int32)">
+            <summary>
+            This is the Primary uint[].Read() method. All other uint[].ReadXXX methods lead here. For maximum performance use this for all Read() calls and cast accordingly.
+            </summary>
+            <param name="buffer">The array we are deserializing from.</param>
+            <param name="bitposition">The position in the array (in bits) where we will begin reading.</param>
+            <param name="bits">The number of bits to read.</param>
+            <returns>UInt64 read value. Cast this to the intended type.</returns>
+        </member>
+        <member name="M:emotitron.Compression.ArraySerializeExt.Read(System.UInt64[],System.Int32@,System.Int32)">
+            <summary>
+            This is the Primary ulong[].Read() method. All other ulong[].ReadXXX methods lead here. For maximum performance use this for all Read() calls and cast accordingly.
+            </summary>
+            <param name="buffer">The array we are deserializing from.</param>
+            <param name="bitposition">The position in the array (in bits) where we will begin reading.</param>
+            <param name="bits">The number of bits to read.</param>
+            <returns>UInt64 read value. Cast this to the intended type.</returns>
+        </member>
+        <member name="M:emotitron.Compression.ArraySerializeExt.ReadUInt32(System.Byte[],System.Int32@,System.Int32)">
+            <summary>
+            Read a bitcrushed uint out of an array starting at the indicated bit postion.
+            </summary>
+            <param name="buffer">The array we are deserializing from.</param>
+            <param name="bitposition">The position in the array (in bits) where we will begin reading.</param>
+            <param name="bits">The number of bits to read.</param>
+        </member>
+        <member name="M:emotitron.Compression.ArraySerializeExt.ReadUInt32(System.UInt32[],System.Int32@,System.Int32)">
+            <summary>
+            Read a bitcrushed uint out of an array starting at the indicated bit postion.
+            </summary>
+            <param name="buffer">The array we are deserializing from.</param>
+            <param name="bitposition">The position in the array (in bits) where we will begin reading.</param>
+            <param name="bits">The number of bits to read.</param>
+        </member>
+        <member name="M:emotitron.Compression.ArraySerializeExt.ReadUInt32(System.UInt64[],System.Int32@,System.Int32)">
+            <summary>
+            Read a bitcrushed uint out of an array starting at the indicated bit postion.
+            </summary>
+            <param name="buffer">The array we are deserializing from.</param>
+            <param name="bitposition">The position in the array (in bits) where we will begin reading.</param>
+            <param name="bits">The number of bits to read.</param>
+        </member>
+        <member name="M:emotitron.Compression.ArraySerializeExt.ReadUInt64(System.Byte[],System.Int32@,System.Int32)">
+            <summary>
+            Read a bitcrushed uint out of a array starting at the indicated bit postion.
+            </summary>
+            <param name="buffer">The array we are deserializing from.</param>
+            <param name="bitposition">The position in the array (in bits) where we will begin reading.</param>
+            <param name="bits">The number of bits to read.</param>
+        </member>
+        <member name="M:emotitron.Compression.ArraySerializeExt.ReadUInt64(System.UInt32[],System.Int32@,System.Int32)">
+            <summary>
+            Read a bitcrushed uint out of a array starting at the indicated bit postion.
+            </summary>
+            <param name="buffer">The array we are deserializing from.</param>
+            <param name="bitposition">The position in the array (in bits) where we will begin reading.</param>
+            <param name="bits">The number of bits to read.</param>
+        </member>
+        <member name="M:emotitron.Compression.ArraySerializeExt.ReadUInt64(System.UInt64[],System.Int32@,System.Int32)">
+            <summary>
+            Read a bitcrushed uint out of a array starting at the indicated bit postion.
+            </summary>
+            <param name="buffer">The array we are deserializing from.</param>
+            <param name="bitposition">The position in the array (in bits) where we will begin reading.</param>
+            <param name="bits">The number of bits to read.</param>
+        </member>
+        <member name="M:emotitron.Compression.ArraySerializeExt.Write(System.Byte[],System.Byte[],System.Int32@,System.Int32@,System.Int32)">
+            <summary>
+            Copy bits from one array to another.
+            </summary>
+            <param name="buffer"></param>
+            <param name="srcbuffer"></param>
+            <param name="readpos"></param>
+            <param name="writepos"></param>
+            <param name="bits"></param>
+            <returns>Returns the target buffer.</returns>
+        </member>
+    </members>
+</doc>

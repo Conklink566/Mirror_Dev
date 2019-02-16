@@ -1,0 +1,1143 @@
+﻿//Copyright 2018, Davin Carten, All rights reserved
+
+using UnityEngine;
+using emotitron.Utilities.SmartVars;
+using emotitron.Compression;
+using System.Collections.Generic;
+using emotitron.Debugging;
+
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
+namespace emotitron.NST
+{
+	/// <summary>
+	/// NST Add-on for syncing the Unity Animator in conjunction with the Network Sync Transform.
+	/// </summary>
+	[RequireComponent(typeof(NetworkSyncTransform))]
+	[DisallowMultipleComponent]
+	[AddComponentMenu("NST/NST Sync Animator")]
+
+	public class NSTSyncAnimator : NSTComponent, INstAwake, INstOnInterpolate, INstBitstreamInjectSecond, /*INstOnRcvUpdate,*/ INstOnStartInterpolate /*INstOnEndInterpolate*/ /*, INstOnInterpolate*/
+	{
+		[SerializeField] private Animator animator;
+		//public ApplyTiming applyUpdate = ApplyTiming.OnEndInterpolate;
+
+		[Tooltip("A very small number that determines how small a change in float parameters may as well be considered no change. Only play with this if you are either seeing SyncAnimator traffic when there should be none, or if it seems to be dropping animator updates.")]
+		public float floatThreshold = .0000001f;
+
+		[Range(0, 16)]
+		public int keyframeEvery = 10;
+		[Range(0, 16)]
+		[Tooltip("Offsetting the keyframe to an arbitrary number helps keep ALL of the keyframes used by NST from firing on the same updates.")]
+		public int keyframeOffset = 1;
+
+		[Tooltip("Convert any float parameters into Half Floats (16bit) to reduce network traffic.")]
+		public bool useHalfFloats = true;
+
+		//[Tooltip("Indicates whether the server should force its values for the animator when a teleport occurs, or if they should be left alone " +
+		//	"and remain as the owner indicated them. Teleport Override generally is used for things like respawn, " +
+		//	"where the server may want to ‘reset’ aspects of an object to their starting state. Anything marked as Teleport Override, " +
+		//	"you will want to set on the server prior to initiating the teleport - as it will replicate the state on the server to all clients.")]
+		//public bool teleportOverride;
+
+		/// Triggers
+		[HideInInspector] public bool syncTriggers = false;
+		[HideInInspector] public bool useIndexedHashes = true;
+		[HideInInspector] public bool useNonindexedHashes = true;
+		[HideInInspector] public bool useLayersForMethods = true;
+		[HideInInspector] public List<string> knownStateNames = new List<string>();
+		private List<int> knownStateHashes = new List<int>();
+		private int bitsForStateIndex;
+
+		/// States
+		[HideInInspector] public bool syncStates = true;
+		[HideInInspector] public bool rootLayerOnly = true;
+
+		/// Parameters
+		[HideInInspector] public bool syncParams = true;
+		[HideInInspector] public bool includeTriggers = false;
+		[HideInInspector] public bool interpolateInts = false;
+		[HideInInspector] public bool interpolateFloats = true;
+		[HideInInspector] public bool extrapolateInts = true;
+		[HideInInspector] public bool extrapolateFloats = true;
+		[HideInInspector] public bool extrapolateBools = true;
+		[HideInInspector] public bool extrapolateTriggers = false;
+
+		/// Valid Flags
+		private ulong validMaskParameters;
+
+		/// cached stuff
+		private int frameCount;
+		private int layerCount;
+		private int bitsForLayerIndex;
+		private int paramCount;
+		private AnimatorControllerParameterType[] paramType;
+		private int[] paramNameHashes;
+		private SmartVar[] paramDefValue;
+
+		private SmartVar[][] parameters;
+		private int[][] stateHashes;
+		private float[][] normalizedTime;
+
+		private Queue<TriggerItem>[] frameTriggers;
+		private Queue<TriggerItem>[] frameCrossFades;
+
+		/// History checks
+		private int[] lastTransitionHash;
+		private int[] lastAnimationHash;
+		private SmartVar[] lastSentParams;
+
+		// Initialize this after the NST wakes up
+		public override void OnNstPostAwake()
+		{
+			base.OnNstPostAwake();
+
+			if (animator == null)
+				animator = GetComponent<Animator>();
+
+			/// Convert all known state names into hashes
+			for (int i = 0; i < knownStateNames.Count; ++i)
+			{
+				knownStateHashes.Add(Animator.StringToHash(knownStateNames[i]));
+			}
+
+			bitsForStateIndex = FloatCrusher.GetBitsForMaxValue((uint)knownStateHashes.Count - 1);
+
+			XDebug.LogError(this.GetType().Name + " found no Animator component. Be sure " + name + " has an animator.", (animator == null), true);
+
+			frameCount = nst.frameCount;
+			paramCount = animator.parameters.Length;
+
+			layerCount = animator.layerCount;
+			bitsForLayerIndex = FloatCrusher.GetBitsForMaxValue((uint)(layerCount - 1));
+
+			//TODO the extra offtick frame may never be used.
+			parameters = new SmartVar[frameCount + 1][];
+			frameCrossFades = new Queue<TriggerItem>[frameCount];
+			frameTriggers = new Queue<TriggerItem>[frameCount];
+
+			stateHashes = new int[frameCount][];
+			normalizedTime = new float[frameCount][];
+
+			for (int i = 0; i < frameCount; ++i)
+			{
+				frameTriggers[i] = new Queue<TriggerItem>();
+				frameCrossFades[i] = new Queue<TriggerItem>();
+
+				parameters[i] = new SmartVar[paramCount];
+
+				stateHashes[i] = new int[layerCount];
+				normalizedTime[i] = new float[layerCount];
+			}
+
+			lastSentParams = new SmartVar[paramCount];
+			paramNameHashes = new int[paramCount];
+			paramDefValue = new SmartVar[paramCount];
+
+			lastTransitionHash = new int[layerCount];
+			lastAnimationHash = new int[layerCount];
+
+			paramType = new AnimatorControllerParameterType[paramCount];
+			// Cache some of the readonly parameter attributes
+			for (int pid = 0; pid < paramCount; ++pid)
+			{
+				paramType[pid] = animator.parameters[pid].type;
+				paramNameHashes[pid] = animator.parameters[pid].nameHash;
+				if (paramType[pid] == AnimatorControllerParameterType.Int)
+					paramDefValue[pid] = animator.parameters[pid].defaultInt;
+				else if (paramType[pid] == AnimatorControllerParameterType.Float)
+					paramDefValue[pid] = animator.parameters[pid].defaultFloat;
+				else
+					paramDefValue[pid] = animator.parameters[pid].defaultBool;
+
+				//for (int i = 0; i < frameCount; ++i)
+				//	parameters[i][pid] = paramDefValue[pid];
+
+				/// Start our lastSent values to the default so our param tests don't require any special checks.
+				lastSentParams[pid] = paramDefValue[pid];
+
+			}
+		}
+
+		#region Trigger and Crossfade Passhthrough Events
+
+		public enum LocalApplyTiming { Never, Immediately, OnSend }
+
+		private struct TriggerItem
+		{
+			public int hash;
+			public float time;
+			public int layer;
+			public LocalApplyTiming localApplyTiming;
+
+			public TriggerItem(int hash, float time)
+			{
+				this.hash = hash;
+				this.time = time;
+				this.layer = -1;
+				this.localApplyTiming = LocalApplyTiming.Never;
+			}
+			public TriggerItem(int hash, float time, LocalApplyTiming localApplyTiming)
+			{
+				this.hash = hash;
+				this.time = time;
+				this.layer = -1;
+				this.localApplyTiming = localApplyTiming;
+			}
+			public TriggerItem(int hash, float time, int layer, LocalApplyTiming localApplyTiming)
+			{
+				this.hash = hash;
+				this.time = time;
+				this.layer = layer;
+				this.localApplyTiming = localApplyTiming;
+			}
+		}
+
+		private Queue<TriggerItem> triggerQueue = new Queue<TriggerItem>(8);
+		private Queue<TriggerItem> crossFadeQueue = new Queue<TriggerItem>(8);
+
+		public void QueueTrigger(string triggerName, LocalApplyTiming localApplyTiming = LocalApplyTiming.OnSend)
+		{
+			QueueTrigger(Animator.StringToHash(triggerName), localApplyTiming);
+		}
+		public void QueueTrigger(int hash, LocalApplyTiming localApplyTiming = LocalApplyTiming.OnSend)
+		{
+			if (syncTriggers)
+			{
+				triggerQueue.Enqueue(new TriggerItem(hash, -1, localApplyTiming));
+
+				if (localApplyTiming == LocalApplyTiming.Immediately)
+					animator.SetTrigger(hash);
+			}
+			/// Apply the crossfade if we have networking disabled as a conveinience for testing.
+			else if (localApplyTiming != LocalApplyTiming.Never)
+				animator.SetTrigger(hash);
+		}
+
+		public void CrossFadeInFixedTime(string stateName, float time, LocalApplyTiming localApplyTiming = LocalApplyTiming.OnSend)
+		{
+			CrossFadeInFixedTime(stateName, time, -1, localApplyTiming);
+		}
+		public void CrossFadeInFixedTime(int hash, float time, LocalApplyTiming localApplyTiming = LocalApplyTiming.OnSend)
+		{
+			CrossFadeInFixedTime(hash, time, -1, localApplyTiming);
+
+			XDebug.LogWarning("State hash '" + hash + "' doesn't exist in the known states list of '" + GetType().Name + "' on '" + name + "'. Adding it will greatly reduce network traffic.",
+				syncTriggers && !knownStateHashes.Contains(hash), true);
+
+			XDebug.LogError("Non-indexed state hashes are not enabled in '" + GetType().Name + "' on gameobject '" + gameObject + "', but an non-indexed hash is being called to SetTrigger(). Be sure to add all names to the hash list, or enabled non-indexed hashes." , 
+				!knownStateHashes.Contains(hash) && !useNonindexedHashes, true);
+		}
+
+		public void CrossFadeInFixedTime(string stateName, float time, int layer, LocalApplyTiming localApplyTiming = LocalApplyTiming.OnSend)
+		{
+			int hash = Animator.StringToHash(stateName);
+			CrossFadeInFixedTime(hash, time, layer, localApplyTiming);
+
+			XDebug.LogWarning("State name '" + stateName + "' doesn't exist in the known states list of '" + GetType().Name + "' on '" + name + "'. Adding it will greatly reduce network traffic.",
+				syncTriggers && !knownStateHashes.Contains(hash), true);
+
+			XDebug.LogError("Non-indexed state hashes are not enabled in '" + GetType().Name + "' on gameobject '" + gameObject + "', but non-indexed state " + stateName + " is being called to SetTrigger(). Be sure to add all names to the hash list, or enabled non-indexed hashes.",
+				!knownStateHashes.Contains(hash) && !useNonindexedHashes, true);
+		}
+		public void CrossFadeInFixedTime(int hash, float time, int layer, LocalApplyTiming localApplyTiming = LocalApplyTiming.OnSend)
+		{
+			if (syncTriggers)
+			{
+				crossFadeQueue.Enqueue(new TriggerItem(hash, time, layer, localApplyTiming));
+
+				if (localApplyTiming == LocalApplyTiming.Immediately)
+					animator.CrossFadeInFixedTime(hash, time, layer);
+			}
+			/// Apply the crossfade if we have networking disabled as a conveinience for testing.
+			else if (localApplyTiming != LocalApplyTiming.Never)
+				animator.CrossFadeInFixedTime(hash, time, layer);
+		}
+
+		#endregion
+
+		/// <summary>
+		/// Callback from NST... Animator injects Triggers, States and Parameters to stream
+		/// </summary>
+		public void NSTBitstreamOutgoingSecond(Frame frame, ref UdpBitStream bitstream)
+		{
+			int frameid = frame.frameid;
+
+			/// Currently I see no reason why animator syncs would need to do anything on the offtick.
+			if (frameid >= nst.frameCount)
+				return;
+
+			/// Write Passthrough Trigger and Callback Events
+			if (syncTriggers)
+				WriteTriggers(ref bitstream);
+
+			/// Write Parameters
+			if (syncParams)
+				WriteParameters(ref bitstream, frameid);
+
+			/// Write State(s)
+			if (syncStates)
+				WriteStates(ref bitstream);
+		}
+
+		/// <summary>
+		/// Callback from NST... Animator extracts Triggers, States and Parameters from stream
+		/// </summary>
+		public void NSTBitstreamIncomingSecond(Frame frame, Frame currFrame, ref UdpBitStream bitstream, ref UdpBitStream outstream, bool asServer, bool waitingForTeleportConfirm)
+		{
+			int frameid = frame.frameid;
+
+			/// Currently I see no reason why animator syncs would need to do anything on the offtick.
+			if (frameid >= nst.frameCount)
+				return;
+
+			if (syncTriggers)
+				ReadTriggers(ref bitstream, ref outstream, frameid, asServer);
+
+			if (syncParams)
+			{
+				/// Teleport handling may need to eventually be added.
+				//// Reject any incoming updates if we are waiting for a confirmation.
+				//if (waitingForTeleportConfirm)
+				//{
+				//	// TODO: Outgoing needs to be stripped from this method to handle teleport correctly! Copy from NSTElementsEngine
+				//	ReadParameters(nst, currFrame.frameid, ref bitstream, ref outstream, asServer);
+				//}
+				//else
+				//{
+				//	ReadParameters(nst, frameid, ref bitstream, ref outstream, asServer);
+				//}
+
+				ReadParameters(nst, frameid, ref bitstream, ref outstream, asServer);
+			}
+
+			if (syncStates)
+				ReadStates(ref bitstream, ref outstream, frameid, asServer);
+		}
+
+		private int snapFrame, targFrame;
+		/// <summary>
+		/// Callback from NST... Interpolation Snapshot and Targets are advanced, and any State/Triggers are applied.
+		/// </summary>
+		public void OnStartInterpolate(Frame frame, bool lateArrival = false, bool midTeleport = false)
+		{
+			snapFrame = targFrame;
+			targFrame = frame.frameid;
+
+			if (syncTriggers)
+			{
+				/// Apply any triggers
+				while (frameTriggers[targFrame].Count > 0)
+				{
+					var item = frameTriggers[targFrame].Dequeue();
+					animator.SetTrigger(item.hash);
+				}
+
+				/// Apply any CrossFades
+				while (frameCrossFades[targFrame].Count > 0)
+				{
+					var item = frameCrossFades[targFrame].Dequeue();
+					animator.CrossFadeInFixedTime(item.hash, item.time, item.layer);
+				}
+			}
+
+			if (syncStates)
+			{
+				int count = (rootLayerOnly) ? 1 : layerCount;
+				for (int layer = 0; layer < count; ++layer)
+				{
+					int statehash = stateHashes[targFrame][layer];
+
+					if (statehash != 0)
+					{
+						animator.Play(statehash, layer, normalizedTime[targFrame][layer]);
+
+						/// Set frame/layer as no longer valid (prevents from missed incoming frames finding this value again) - may be redudant.
+						stateHashes[targFrame][layer] = 0;
+					}
+				}
+			}
+
+			/// Store Parameters - extrapolate if update hasn't arrived.
+			if (syncParams)
+			{
+				SmartVar[] snaps = parameters[snapFrame];
+				SmartVar[] targs = parameters[targFrame];
+
+				bool isValid = (validMaskParameters & ((ulong)1 << targFrame)) != 0;
+
+				// If this frame is already invalid (never arrived) - extrapolate some kind of value
+				// Currently dropped frames use the default value for the parameter (rather than say repeating the last rcvd value)
+				// Eventually would like to make this a per parameter option, but that will be a pretty large undertakng.
+				if (!isValid)
+				{
+					/// if next frame from the buffer isn't flagged as valid, it hasn't arrived - Extrapolate
+					for (int pid = 0; pid < paramCount; ++pid)
+					{
+						// Float lerps back toward default value on lost frames as a loss handling compromise currently.
+						if (paramType[pid] == AnimatorControllerParameterType.Float)
+						{
+							targs[pid] = (extrapolateFloats) ? snaps[pid] : paramDefValue[pid]; // Mathf.Lerp(defValue[pid], snaps[pid], 0.5f);  //snaps[pid]
+						}
+
+						else if (paramType[pid] == AnimatorControllerParameterType.Int)
+						{
+							targs[pid] = (extrapolateInts) ? snaps[pid] : paramDefValue[pid];  //snaps[pid]
+						}
+
+						else if (paramType[pid] == AnimatorControllerParameterType.Bool)
+						{
+							targs[pid] = (extrapolateBools) ? snaps[pid] : paramDefValue[pid];
+						}
+
+						else if (includeTriggers)
+						{
+							targs[pid] = (extrapolateTriggers) ? snaps[pid] : paramDefValue[pid];
+						}
+					}
+				}
+				else
+				{
+					// Set this frame as no longer valid (has be used)
+					validMaskParameters = validMaskParameters & ~((ulong)1 << targFrame);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Callback from NST... Interpolate parameters from SnapshotFrame and TargetFrame.
+		/// </summary>
+		public void OnInterpolate(float t)
+		{
+			if (syncParams)
+			{
+				SmartVar[] snapParams = parameters[snapFrame];
+				SmartVar[] targParams = parameters[targFrame];
+
+				for (int pid = 0; pid < paramCount; ++pid)
+				{
+					AnimatorControllerParameterType type = paramType[pid];
+
+					SmartVar snap = snapParams[pid];
+					SmartVar targ = targParams[pid];
+
+					// Don't try to interpolate if this is flagged as not changed/empty
+					if (snap.TypeCode == SmartVarTypeCode.None || targ.TypeCode == SmartVarTypeCode.None)
+						continue;
+
+					if (type == AnimatorControllerParameterType.Int)
+					{
+						int value = (interpolateInts) ?
+							(int)Mathf.Lerp(snap, targ, t) : (int)snap;
+
+						animator.SetInteger(paramNameHashes[pid], value);
+					}
+
+					else if (type == AnimatorControllerParameterType.Float)
+					{
+						float value = (interpolateFloats) ?
+							(float)Mathf.Lerp((float)snap, (float)targ, t) : (float)snap;
+
+						animator.SetFloat(paramNameHashes[pid], value);
+					}
+
+					/// Removed interpolation of Bools and Triggers, since they never interpolate - Apply on StartInterpolation instead.
+					else if (type == AnimatorControllerParameterType.Bool)
+					{
+						animator.SetBool(paramNameHashes[pid], snap);
+					}
+
+					/// TODO: May be able to invoke some special handling when this changes
+					else if (type == AnimatorControllerParameterType.Trigger)
+					{
+						animator.SetBool(paramNameHashes[pid], snap);
+					}
+				}
+			}
+
+		}
+
+		#region Reader/Writers
+
+		private void WriteParameters(ref UdpBitStream bitstream, int frameid)
+		{
+			bool iskey = IsKey(frameid);
+
+			for (int pid = 0; pid < paramCount; ++pid)
+			{
+
+				int nameHash = paramNameHashes[pid];
+				AnimatorControllerParameterType type = paramType[pid];
+
+				if (type == AnimatorControllerParameterType.Int)
+				{
+					int val = animator.GetInteger(nameHash);
+
+					if (iskey /*|| lastSentParams[pid].TypeCode == SmartVarTypeCode.None*/ || val != lastSentParams[pid])
+					{
+						if (!iskey)
+							bitstream.WriteBool(true);
+
+						bitstream.WriteInt(val);
+						lastSentParams[pid] = val;
+					}
+					else
+					{
+						if (!iskey)
+							bitstream.WriteBool(false);
+					}
+				}
+
+				else if (type == AnimatorControllerParameterType.Float)
+				{
+					float val = animator.GetFloat(nameHash);
+
+					if (iskey /*|| lastSentParams[pid].TypeCode == SmartVarTypeCode.None*/ || Mathf.Abs(val - lastSentParams[pid]) > floatThreshold)
+					{
+						if (!iskey)
+							bitstream.WriteBool(true);
+
+						if (useHalfFloats)
+							bitstream.WriteHalf(val);
+						else
+							bitstream.WriteFloat(val);
+
+						lastSentParams[pid] = val;
+					}
+					else
+					{
+						if (!iskey)
+							bitstream.WriteBool(false);
+					}
+				}
+
+				else if (type == AnimatorControllerParameterType.Bool)
+				{
+					bool val = animator.GetBool(nameHash);
+
+					bitstream.WriteBool(val);
+				}
+
+				else if (type == AnimatorControllerParameterType.Trigger)
+				{
+					if (!includeTriggers)
+						continue;
+
+					bool val = animator.GetBool(nameHash);
+					bitstream.WriteBool(val);
+				}
+			}
+		}
+
+		private void ReadParameters(NetworkSyncTransform nst, int frameid, ref UdpBitStream instream, ref UdpBitStream outstream, bool isServer)
+		{
+			bool iskey = IsKey(frameid);
+
+			SmartVar[] parms = parameters[frameid];
+
+			for (int pid = 0; pid < paramCount; ++pid)
+			{
+
+				AnimatorControllerParameterType type = paramType[pid];
+
+				if (type == AnimatorControllerParameterType.Int)
+				{
+					bool used = iskey ? true : instream.ReadBool();
+					if (!iskey && isServer)
+						outstream.WriteBool(used);
+
+					if (used)
+					{
+						int val = instream.ReadInt();
+						parms[pid] = val;
+
+						if (isServer)
+							outstream.WriteInt(val);
+					}
+					else
+					{
+						parms[pid] = SmartVar.None;
+					}
+				}
+
+				else if (type == AnimatorControllerParameterType.Float)
+				{
+					bool used = iskey ? true : instream.ReadBool();
+					if (!iskey && isServer)
+						outstream.WriteBool(used);
+
+					if (used)
+					{
+						float val = (useHalfFloats) ? instream.ReadHalf() : instream.ReadFloat();
+						parms[pid] = val;
+
+						if (isServer)
+						{
+							if (useHalfFloats)
+								outstream.WriteHalf(val);
+							else
+								outstream.WriteFloat(val);
+						}
+					}
+					else
+					{
+						parms[pid] = SmartVar.None;
+					}
+				}
+
+				else if (type == AnimatorControllerParameterType.Bool)
+				{
+					bool val = instream.ReadBool();
+					parms[pid] = val;
+
+					if (isServer)
+						outstream.WriteBool(val);
+				}
+
+				else if (type == AnimatorControllerParameterType.Trigger)
+				{
+					if (!includeTriggers)
+						continue;
+
+					bool val = instream.ReadBool();
+					parms[pid] = val;
+
+					if (isServer)
+						outstream.WriteBool(val);
+				}
+			}
+			/// Mark this frame as having parameter information
+			validMaskParameters |= ((ulong)1 << frameid);
+		}
+
+		private void WriteTriggers(ref UdpBitStream bitstream)
+		{
+			while (triggerQueue.Count > 0)
+			{
+				var item = triggerQueue.Dequeue();
+
+				if (item.localApplyTiming == LocalApplyTiming.OnSend)
+					animator.SetTrigger(item.hash);
+
+				/// Write first bool for trigger event
+				bitstream.WriteBool(true);
+
+				if (useIndexedHashes)
+				{
+					if (knownStateHashes.Contains(item.hash))
+					{
+						/// Second Bool - If both indexed and non-indexed can be used, we need to set a second bit flag to indicate indexed being used- true = indexed, false = non
+						if (useNonindexedHashes)
+							bitstream.WriteBool(true);
+
+						bitstream.WriteInt(knownStateHashes.IndexOf(item.hash), bitsForStateIndex);
+						continue;
+					}
+				}
+
+				if (useNonindexedHashes)
+				{
+					/// Second Bool - If both indexed and non-indexed can be used, we need to set a second bit flag to indicate indexed being used - true = indexed, false = non
+					if (useIndexedHashes)
+						bitstream.WriteBool(false);
+
+					/// Write non-indexed hash
+					bitstream.WriteInt(item.hash);
+				}
+
+			}
+			/// First Bool -  indicate no more Triggers
+			bitstream.WriteBool(false);
+
+
+			while (crossFadeQueue.Count > 0)
+			{
+				var item = crossFadeQueue.Dequeue();
+
+				if (item.localApplyTiming == LocalApplyTiming.OnSend)
+					animator.CrossFadeInFixedTime(item.hash, item.time, item.layer);
+
+				/// Write first bool for trigger event
+				bitstream.WriteBool(true);
+
+				if (useIndexedHashes)
+				{
+					if (knownStateHashes.Contains(item.hash))
+					{
+						/// Second Bool - If both indexed and non-indexed can be used, we need to set a second bit flag to indicate indexed being used- true = indexed, false = non
+						if (useNonindexedHashes)
+							bitstream.WriteBool(true);
+
+						bitstream.WriteInt(knownStateHashes.IndexOf(item.hash), bitsForStateIndex);
+
+						if (useLayersForMethods)
+							bitstream.WriteInt(item.layer, bitsForLayerIndex);
+
+						if (useHalfFloats)
+							bitstream.WriteHalf(item.time);
+						else
+							bitstream.WriteFloat(item.time);
+						continue;
+					}
+				}
+				if (useNonindexedHashes)
+				{
+					/// Second Bool - If both indexed and non-indexed can be used, we need to set a second bit flag to indicate indexed being used - true = indexed, false = non
+					if (useIndexedHashes)
+						bitstream.WriteBool(false);
+
+					bitstream.WriteInt(item.hash);
+
+					if (useLayersForMethods)
+						bitstream.WriteInt(item.layer, bitsForLayerIndex);
+
+					if (useHalfFloats)
+						bitstream.WriteHalf(item.time);
+					else
+						bitstream.WriteFloat(item.time);
+				}
+
+			}
+			/// First Bool -  indicate no more Triggers
+			bitstream.WriteBool(false);
+		}
+
+		private void ReadTriggers(ref UdpBitStream bitstream, ref UdpBitStream outstream, int frameid, bool asServer)
+		{
+			/// Read Triggers
+			while (bitstream.ReadBool())
+			{
+				/// Complex mess that determines if the hash was sent as an index or full hash
+				bool isIndexed = (useNonindexedHashes && useIndexedHashes) ? bitstream.ReadBool() : useIndexedHashes ? true : false;
+
+				int hash = (isIndexed) ? bitstream.ReadInt(bitsForStateIndex) : bitstream.ReadInt();
+				int realhash = (isIndexed) ? knownStateHashes[hash] : hash;
+
+				frameTriggers[frameid].Enqueue(new TriggerItem(realhash, -1));
+				if (asServer)
+				{
+					/// First Bool
+					outstream.WriteBool(true);
+					/// Second Bool
+					if (useNonindexedHashes && useIndexedHashes)
+						outstream.WriteBool(isIndexed);
+
+					if (isIndexed)
+						outstream.WriteInt(hash, bitsForStateIndex);
+					else
+						outstream.WriteInt(hash);
+				}
+			}
+			/// First Bool
+			if (asServer)
+				outstream.WriteBool(false);
+
+
+
+			/// Read CrossFades
+			while (bitstream.ReadBool())
+			{
+				/// Complex mess that determines if the hash was sent as an index or full hash
+				bool isIndexed = (useNonindexedHashes && useIndexedHashes) ? bitstream.ReadBool() : useIndexedHashes ? true : false;
+
+				int hash = (isIndexed) ? bitstream.ReadInt(bitsForStateIndex) : bitstream.ReadInt();
+				int realhash = (isIndexed) ? knownStateHashes[hash] : hash;
+				int layer = (useLayersForMethods) ? bitstream.ReadInt(bitsForLayerIndex) : -1;
+
+				float time = (useHalfFloats) ? bitstream.ReadHalf() : bitstream.ReadFloat();
+
+				frameCrossFades[frameid].Enqueue(new TriggerItem(realhash, time));
+				//animator.CrossFadeInFixedTime(hash, time);
+				if (asServer)
+				{
+					/// First Bool
+					outstream.WriteBool(true);
+					/// Second Bool
+					if (useNonindexedHashes && useIndexedHashes)
+						outstream.WriteBool(isIndexed);
+
+					if (isIndexed)
+						outstream.WriteInt(hash, bitsForStateIndex);
+					else
+						outstream.WriteInt(hash);
+
+					if (useLayersForMethods)
+						outstream.WriteInt(layer, bitsForLayerIndex);
+
+					if (useHalfFloats)
+						outstream.WriteHalf(time);
+					else
+						outstream.WriteFloat(time);
+				}
+			}
+			if (asServer)
+				outstream.WriteBool(false);
+		}
+
+		private void WriteStates(ref UdpBitStream bitstream)
+		{
+			int stateHash;
+			float normalizedTime;
+
+			int count = (rootLayerOnly) ? 1 : layerCount;
+			for (int layer = 0; layer < count; ++layer)
+			{
+				bool haschanged = CheckAnimStateChanged(out stateHash, out normalizedTime, layer);
+
+				if (haschanged)
+				{
+					bitstream.WriteBool(true);
+					bitstream.Write(stateHash, 32);
+					if (useHalfFloats)
+						bitstream.WriteHalf(normalizedTime);
+					else
+						bitstream.WriteFloat(normalizedTime);
+				}
+				else
+				{
+					bitstream.WriteBool(false);
+				}
+			}
+		}
+
+		private void ReadStates(ref UdpBitStream bitstream, ref UdpBitStream outstream, int frameid, bool asServer)
+		{
+			var statehashes = stateHashes[frameid];
+			var normaltimes = normalizedTime[frameid];
+
+			int count = (rootLayerOnly) ? 1 : layerCount;
+
+			for (int layer = 0; layer < count; ++layer)
+			{
+				bool includesStateHash = bitstream.ReadBool();
+
+				if (includesStateHash)
+				{
+					statehashes[layer] = bitstream.ReadInt(32);
+					normaltimes[layer] = bitstream.ReadHalf();
+
+					if (asServer)
+					{
+						outstream.WriteBool(true);
+
+						outstream.WriteInt(statehashes[layer], 32);
+						if (useHalfFloats)
+							outstream.WriteHalf(normaltimes[layer]);
+						else
+							outstream.WriteFloat(normaltimes[layer]);
+					}
+				}
+				else
+				{
+					if (asServer)
+						outstream.WriteBool(false);
+				}
+			}
+		}
+
+		#endregion
+
+		/// <summary>
+		/// State change check, borrowed and reworked from UNET
+		/// </summary>
+		private bool CheckAnimStateChanged(out int stateHash, out float normalizedTime, int layer)
+		{
+			stateHash = 0;
+			normalizedTime = 0;
+
+			if (animator.IsInTransition(layer))
+			{
+				AnimatorTransitionInfo tt = animator.GetAnimatorTransitionInfo(layer);
+				if (tt.fullPathHash != lastTransitionHash[layer])
+				{
+					lastTransitionHash[layer] = tt.fullPathHash;
+					lastAnimationHash[layer] = 0;
+					return true;
+				}
+				return false;
+			}
+
+			/// TODO: this may not be very resilient to network loss
+			AnimatorStateInfo st = animator.GetCurrentAnimatorStateInfo(layer);
+			if (st.fullPathHash != lastAnimationHash[layer])
+			{
+				if (lastAnimationHash[layer] != 0)
+				{
+					stateHash = st.fullPathHash;
+					normalizedTime = st.normalizedTime;
+				}
+				lastTransitionHash[layer] = 0;
+				lastAnimationHash[layer] = st.fullPathHash;
+				return true;
+			}
+			return false;
+		}
+
+		private bool IsKey(int frameid)
+		{
+			if (keyframeEvery == 0)
+				return false;
+
+			return ((frameid - keyframeOffset) % keyframeEvery == 0);
+		}
+	}
+
+	// Need to have this editor or the property drawer freaks out.
+#if UNITY_EDITOR
+
+	[CustomEditor(typeof(NSTSyncAnimator))]
+	[CanEditMultipleObjects]
+	public class NSTSyncAnimatorEditor : NSTHeaderEditorBase
+	{
+		NSTSyncAnimator t;
+
+		float halfwidth;
+		float thrdwidth;
+		float quatwidth;
+
+		private static GUIContent TriggerLabel = new GUIContent(
+			"Sync Trigger Methods",
+			"'this.SetTrigger()' and 'this.CrossFadeInFixedTime()' methods are provided by this class, and will pass through the same named commands to the Animator. " +
+			"When enabled, these methods will be sent and triggered over the network. Disabing this allows these methods to act as if they were called directly on the Animator without any networking, which is convenient for testing.");
+
+		private static GUIContent StatesLabel = new GUIContent(
+			"Sync States",
+			"When enabled, changes in the animator current state are transmitted.");
+
+		private static GUIContent ParamsLabel = new GUIContent(
+			"Sync Parameters",
+			"When enabled, animator parameters will be networked and synced.");
+
+		private static GUIContent label_indexedStateNames = new GUIContent(
+			"Indexed State Names", 
+			"Any names added here will be indexed, and that index will be used for Trigger and Crossfade RPCs rather than 32 bit hashes.");
+
+		private static GUIContent label_RootLayerOnly = new GUIContent(
+			"Root Layer Only", 
+			"State syncs only operate on the root layer, rather than checking/transmitting changes every animation layer.");
+
+		private static GUIContent label_Interp = new GUIContent(
+			"Interpolate", 
+			"Interpolation enables lerping(tweening) of values on clients between network updates.");
+
+		private static GUIContent label_Extrap = new GUIContent(
+			"Extrapolate", 
+			"Extrapolation replicates previous values if new values from the network fail to arrive in time. When disabled, values default to default value for that parameter as defined in the Animator");
+
+
+		public override void OnEnable()
+		{
+			t = (NSTSyncAnimator)target;
+
+			headerName = HeaderAnimatorAddonName;
+			headerColor = HeaderAnimatorAddonColor;
+			base.OnEnable();
+		}
+
+		public override void OnInspectorGUI()
+		{
+			//halfwidth = EditorGUIUtility.currentViewWidth * .5f;
+			thrdwidth = EditorGUIUtility.currentViewWidth * .3f;
+			//quatwidth = EditorGUIUtility.currentViewWidth * .25f;
+
+			base.OnInspectorGUI();
+
+			serializedObject.Update();
+			EditorGUI.BeginChangeCheck();
+
+			Divider();
+
+			/// Triggers
+			t.syncTriggers = EditorGUILayout.BeginToggleGroup(TriggerLabel, t.syncTriggers);
+			if (t.syncTriggers)
+				TriggerMethodsSection();
+			EditorGUILayout.EndToggleGroup();
+
+			Divider();
+
+			/// States
+			t.syncStates = EditorGUILayout.BeginToggleGroup(StatesLabel, t.syncStates);
+			if (t.syncStates)
+				StatesSection();
+			EditorGUILayout.EndToggleGroup();
+
+			Divider();
+
+			/// Parameters
+			t.syncParams = EditorGUILayout.BeginToggleGroup(ParamsLabel, t.syncParams);
+			if (t.syncParams)
+				ParamSection();
+			EditorGUILayout.EndToggleGroup();
+
+			EditorGUILayout.Space();
+
+			if (EditorGUI.EndChangeCheck())
+				serializedObject.ApplyModifiedProperties();
+		}
+
+		private void Divider()
+		{
+			EditorGUILayout.Space();
+			Rect r = EditorGUILayout.GetControlRect(false, 2);
+			EditorGUI.DrawRect(r, Color.black);
+			EditorGUILayout.Space();
+		}
+
+	#region Sync Trigger Methods
+
+		private void TriggerMethodsSection()
+		{
+
+			MiniToggle(EditorGUILayout.GetControlRect(), new GUIContent("Use Non-Indexed Hashes (for testing only)"), ref t.useNonindexedHashes);
+			bool iHasChanged = 
+				MiniToggle(EditorGUILayout.GetControlRect(), new GUIContent("Use Indexed Hashes (ideal)"), ref t.useIndexedHashes);
+
+			/// Force at least one toggle is selected. If selecting makes both disabled, enable the other.
+			if (!t.useIndexedHashes && !t.useNonindexedHashes)
+				if (iHasChanged)
+					t.useNonindexedHashes = true;
+				else
+					t.useIndexedHashes = true;
+
+			EditorGUI.BeginDisabledGroup(!t.useIndexedHashes);
+				if (t.useIndexedHashes)
+					CrossFadeList();
+			EditorGUI.EndDisabledGroup();
+
+			EditorGUILayout.HelpBox(
+				((t.useIndexedHashes) ? (FloatCrusher.GetBitsForMaxValue((uint)t.knownStateNames.Count - 1) + " bits per indexed Trigger/Crossfade.\n") : "") +
+				((t.useNonindexedHashes) ? "32 bits per non-indexed Trigger/Crossfade." : ""),
+				MessageType.None);
+		}
+
+		private void CrossFadeList()
+		{
+			int indent = 16;
+			int bttnwidth = 16;
+			Rect r;
+
+			
+			EditorGUI.LabelField(GetIndentedControlRect(indent), label_indexedStateNames);
+			for (int i = 0; i < t.knownStateNames.Count; ++i)
+			{
+				r = EditorGUILayout.GetControlRect();
+				t.knownStateNames[i] = EditorGUI.TextField(new Rect(r.xMin + indent, r.yMin, r.width - bttnwidth - indent, r.height), t.knownStateNames[i]);
+				if (GUI.Button(new Rect(r.xMax - bttnwidth, r.yMin, bttnwidth, r.height), "X"))
+				{
+					t.knownStateNames.RemoveAt(i);
+					break;
+				}
+			}
+
+			if (GUI.Button(GetIndentedControlRect(indent), "Add Trigger/State Name"))
+				t.knownStateNames.Add("SetToNameOfStateOrTrigger");
+
+		}
+
+	#endregion
+
+		private void StatesSection()
+		{
+			MiniToggle(EditorGUILayout.GetControlRect(), label_RootLayerOnly, ref t.rootLayerOnly);
+		}
+
+	#region Parameters
+
+		private void ParamSection()
+		{
+
+			var r = EditorGUILayout.GetControlRect();
+
+			r.xMin += thrdwidth;
+			r.width = thrdwidth;
+			EditorGUI.LabelField(r, label_Interp);
+
+			r.xMin += thrdwidth;
+			r.width = thrdwidth;
+			EditorGUI.LabelField(r, label_Extrap);
+
+			r = ColLabel("Integers");
+			ColInterp(r, ref t.interpolateInts);
+			ColExtrap(r, ref t.extrapolateInts);
+
+			r = ColLabel("Floats");
+			ColInterp(r, ref t.interpolateFloats);
+			ColExtrap(r, ref t.extrapolateFloats);
+
+			r = ColLabel("Bools");
+			ColExtrap(r, ref t.extrapolateBools);
+
+			r = ColLabel("Triggers", ref t.includeTriggers);
+			ColExtrap(r, ref t.extrapolateTriggers);
+		}
+
+		private Rect ColLabel(string label, ref bool use)
+		{
+			Rect r = ColLabel(label, false);
+			use = GUI.Toggle(r, use, "", (GUIStyle)"OL Toggle");
+
+			return r;
+		}
+		private Rect ColLabel(string label, bool lockedOn = true)
+		{
+			Rect r = EditorGUILayout.GetControlRect();
+
+			Rect labelrect = new Rect(r.xMin + 16, r.yMin, r.width, r.height);
+			EditorGUI.LabelField(labelrect, label, (GUIStyle)"MiniLabel");
+
+			if (lockedOn)
+			{
+				EditorGUI.BeginDisabledGroup(true);
+				GUI.Toggle(r, true, "", (GUIStyle)"OL Toggle");
+				EditorGUI.EndDisabledGroup();
+			}
+			return r;
+		}
+		private void ColInterp(Rect r, ref bool i)
+		{
+			r.xMin += thrdwidth + 8;
+			r.width = thrdwidth - 8;
+			i = GUI.Toggle(r, i, "", (GUIStyle)"OL Toggle");
+		}
+		private void ColExtrap(Rect r, ref bool e)
+		{
+			r.xMin += thrdwidth * 2 + 8;
+			r.width = thrdwidth - 8;
+			e = GUI.Toggle(r, e, "", (GUIStyle)"OL Toggle");
+		}
+
+	#endregion
+		/// <summary>
+		/// Draw left mini-toggle.
+		/// </summary>
+		/// <returns>Returns true if value has changed.</returns>
+		private bool MiniToggle(Rect r, GUIContent label, ref bool b, bool lockedOn = false)
+		{
+			EditorGUI.LabelField(new Rect(r.xMin + 16, r.yMin, r.width - 16, r.height), label, (GUIStyle)"MiniLabel");
+
+			if (lockedOn)
+				EditorGUI.BeginDisabledGroup(true);
+
+			bool oldval = b;
+			b = GUI.Toggle(new Rect(r.xMin, r.yMin, 32, r.height), b, "", (GUIStyle)"OL Toggle");
+
+			if (lockedOn)
+				EditorGUI.EndDisabledGroup();
+
+			return oldval != b;
+
+		}
+
+		private Rect GetIndentedControlRect(int indent)
+		{
+			Rect r = EditorGUILayout.GetControlRect();
+			r.xMin = r.xMin + indent;
+			r.width = r.width - indent;
+			return r;
+		}
+	}
+#endif
+
+}

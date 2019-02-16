@@ -1,0 +1,168 @@
+﻿//Copyright 2018, Davin Carten, All rights reserved
+
+using UnityEngine;
+using emotitron.Compression;
+using emotitron.NST.Rewind;
+using System.Collections.Generic;
+
+namespace emotitron.NST
+{
+	public static class RewindCastTools
+	{
+		/// <summary>
+		/// Casts are written in the format [bool][castId][castresults]
+		/// </summary>
+		public static void DequeueAndWriteCasts(NetworkSyncTransform nst, NSTRewindEngine nstRewindEngine, ref UdpBitStream bitstream, Frame frame)
+		{
+			if (nstRewindEngine == null)
+				return;
+
+			bool iAmActingAuth = nst.na.IAmActingAuthority;
+			int castDefIdBitcount = nstRewindEngine.castDefIdBitcount;
+			//bool ownerAuthority = NetLibrarySettings.single.defaultAuthority == DefaultAuthority.OwnerAuthority;
+
+			CastResults[] resultsByCastId = nstRewindEngine.rewindCastResults[frame.frameid];
+
+			Queue<int> que = nstRewindEngine.rewindCastQueue;
+			while (que.Count > 0)
+			{
+				int castId = que.Dequeue();
+				CastDefinition castDef = nstRewindEngine.castDefs[castId];
+
+				Replicate replication = iAmActingAuth ? castDef.authorityToAll : castDef.ownerToAuthority;
+
+				if (replication == Replicate.None)
+					continue;
+
+				CastResults results = resultsByCastId[castId];
+
+				// Indicate not end of casts with leading true bit
+				// TODO: replace this with instead making castid 0 == end of casts, and moving all cast ids up in value by 1
+				bitstream.WriteBool(true);
+				//TODO cache the bitsneeded value
+				bitstream.WriteInt(castId, castDefIdBitcount);
+
+				// write results if our replication settings calls for it, written to the reusable buffer
+				if (/*iAmActingAuth || */replication > Replicate.CastOnly)
+				{
+					results = nstRewindEngine.OwnerInvokeCast(results, castId, replication);
+					results.Serialize(ref bitstream, replication);
+				}
+
+				// Send out interface callback letting client know that its cast has fired.
+				foreach (INstCast i in nstRewindEngine.iOnCast)
+					i.OnCast(frame, castDef);
+			}
+			// Indicate end of casts
+			bitstream.WriteBool(false);
+		}
+
+		/// <summary>
+		/// The initial cast done by the owner of the cast definition.
+		/// </summary>
+		public static CastResults OwnerInvokeCast(this NSTRewindEngine nstRewindEngine, CastResults results, int castId, Replicate replication)
+		{
+			CastDefinition castDef = nstRewindEngine.castDefs[castId];
+
+			//CastResults results = CastResults.reusableResults;
+			results.Clear();
+
+			castDef.GenericCastAndProduceResults(castDef.sourceObject.transform, castDef.castHitMask.value, results, true);
+			return results;
+		}
+
+		/// <summary>
+		/// Read (and confirm if this is the master) casts and put their results to the nstRewindEngine.castDefs frame buffer.
+		/// Casts are written in the format [bool][castid][castresults]
+		/// </summary>
+		public static void ReadCasts(NSTRewindEngine nstRewindEngine, ref UdpBitStream bitstream, ref UdpBitStream outstream, bool mirror, Frame frame)
+		{
+			if (nstRewindEngine == null)
+				return;
+
+			int castDefIdBitcount = nstRewindEngine.castDefIdBitcount;
+			int frameid = frame.frameid;
+
+			NSTNetAdapter na = nstRewindEngine.na;
+			CastResults[] frameresults = nstRewindEngine.rewindCastResults[frameid];
+
+			int castMask = 0;
+
+			// Every incoming castDef is preceded by a bool bit
+			while (bitstream.ReadBool())
+			{
+				int castId = bitstream.ReadInt(castDefIdBitcount);
+
+				// cache some stuff
+				CastDefinition castDef = nstRewindEngine.castDefs[castId];
+				CastResults results = frameresults[castId];
+				bool ownerAuthority = NetLibrarySettings.single.defaultAuthority == DefaultAuthority.OwnerAuthority;
+				Replicate authorityToAll = castDef.authorityToAll;
+				Replicate ownerToAuthority = castDef.ownerToAuthority;
+				bool iAmActingAuth = nstRewindEngine.na.IAmActingAuthority;
+
+				castMask |= (1 << castId);
+
+				// When server rcvs it, it places the claimed hits into the reusable static, test the casts, and writes the confirmed to the results
+				if (iAmActingAuth)
+				{
+					CastResults reusable = CastResults.reusableResults;
+					// The authority is the owner - 'results' should already contain the confirmed results. This is a dummy write to maintain bitstream integrity.
+					if (na.IsMine)
+					{
+						// Deserialize into unused dummy to maintain buffer integrity. Auth + owner = we will just send along our results from the intial owrn cast.
+						if (authorityToAll > Replicate.CastOnly)
+						{
+							reusable.CastDef = castDef;
+							reusable.Deserialize(ref bitstream, authorityToAll);
+						}
+					}
+					// If not mine, but I have authority, need confirm the cast after deserializing it, and place that into the frame.results
+					else
+					{
+						// Server needs to confirm any incoming casts from clients - read the incoming results into the resuable, and then use that to test for the confirmed
+						Replicate replicate = ownerAuthority ? authorityToAll : ownerToAuthority;
+
+						reusable.CastDef = castDef;
+						reusable.Deserialize(ref bitstream, replicate);
+						nstRewindEngine.ConfirmCasts(frame, reusable, results);
+					}
+				}
+				// Non-Authorities... just deserialize it into the frame buffer
+				else
+				{
+					if (authorityToAll > Replicate.CastOnly)
+					{
+						results.Deserialize(ref bitstream, authorityToAll);
+					}
+				}
+
+				// put the opening bool and castId to the outstream if castdef calls for passing to clients
+				if (mirror)
+				{
+
+					// The server/master will always send authority to all, as they are either the authority, or are relaying for the authority.
+					Replicate outgoingReplicate = authorityToAll;
+
+					if (outgoingReplicate == Replicate.None)
+						return;
+
+					outstream.WriteBool(true);
+					outstream.WriteInt(castId, castDefIdBitcount);
+
+					if (outgoingReplicate > Replicate.CastOnly)
+						results.Serialize(ref outstream, outgoingReplicate);
+				}
+			}
+
+			// write the mask that indicates which castdefs have fired.
+
+			nstRewindEngine.wasCastMask[frameid] = castMask;
+			// indicate EOS
+			if (mirror)
+				outstream.WriteBool(false);
+		}
+	}
+}
+
+
